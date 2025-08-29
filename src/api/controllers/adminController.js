@@ -180,31 +180,61 @@ const adminController = {
       const jobs = [];
       const errors = [];
 
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        try {
-          const job = {
-            jobId: uuidv4(),
-            role: row.role,
-            companyName: row.companyName,
-            companyLogo: row.companyLogo,
-            location: row.location,
-            salary: row.salary,
-            jobDescription: row.jobDescription,
-            originalLink: row.originalLink,
-            category: row.category,
-            tags: row.tags ? (typeof row.tags === 'number' ? row.tags.toString().split(',').map(tag => tag.trim()) : row.tags.split(',').map(tag => tag.trim())) : [],
-            batch: row.batch ? (typeof row.batch === 'number' ? row.batch.toString().split(',').map(batch => batch.trim()) : row.batch.split(',').map(batch => batch.trim())) : [],
-            expiresOn: row.expiresOn,
-            postedOn: new Date().toISOString(),
-            status: 'active'
-          };
+              for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          try {
+            // Validate required fields
+            const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
+            const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '');
+            
+            if (missingFields.length > 0) {
+              errors.push({ 
+                row: i + 1, 
+                error: `Missing required fields: ${missingFields.join(', ')}` 
+              });
+              continue;
+            }
 
-          jobs.push(job);
-        } catch (error) {
-          errors.push({ row: i + 1, error: error.message });
+            // Validate and clean data
+            const job = {
+              jobId: uuidv4(),
+              role: String(row.role).trim(),
+              companyName: String(row.companyName).trim(),
+              companyLogo: row.companyLogo ? String(row.companyLogo).trim() : undefined,
+              location: String(row.location).trim(),
+              salary: String(row.salary).trim(),
+              jobDescription: String(row.jobDescription).trim(),
+              originalLink: String(row.originalLink).trim(),
+              category: String(row.category).trim(),
+              tags: row.tags ? 
+                (typeof row.tags === 'number' ? 
+                  row.tags.toString().split(',').map(tag => tag.trim()).filter(tag => tag) : 
+                  row.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+                ) : [],
+              batch: row.batch ? 
+                (typeof row.batch === 'number' ? 
+                  row.batch.toString().split(',').map(batch => batch.trim()).filter(batch => batch) : 
+                  row.batch.split(',').map(batch => batch.trim()).filter(batch => batch)
+                ) : [],
+              expiresOn: String(row.expiresOn).trim(),
+              postedOn: new Date().toISOString(),
+              status: 'active'
+            };
+
+            // Additional validation for dates
+            if (isNaN(Date.parse(job.expiresOn))) {
+              errors.push({ 
+                row: i + 1, 
+                error: `Invalid expiresOn date format: ${row.expiresOn}` 
+              });
+              continue;
+            }
+
+            jobs.push(job);
+          } catch (error) {
+            errors.push({ row: i + 1, error: error.message });
+          }
         }
-      }
 
       // Batch write to DynamoDB
       if (jobs.length > 0) {
@@ -214,16 +244,34 @@ const adminController = {
         }
 
         for (const batch of batches) {
-          const params = {
-            RequestItems: {
-              [process.env.JOBS_TABLE]: batch.map(job => ({
-                PutRequest: { Item: job }
-              }))
-            }
-          };
+          try {
+            const params = {
+              RequestItems: {
+                [process.env.JOBS_TABLE]: batch.map(job => ({
+                  PutRequest: { Item: job }
+                }))
+              }
+            };
 
-          const command = new BatchWriteCommand(params);
-          await docClient.send(command);
+            console.log(`Writing batch of ${batch.length} jobs to table: ${process.env.JOBS_TABLE}`);
+            const command = new BatchWriteCommand(params);
+            await docClient.send(command);
+            console.log(`Successfully wrote batch of ${batch.length} jobs`);
+          } catch (batchError) {
+            console.error('Error writing batch to DynamoDB:', batchError);
+            console.error('Batch data:', JSON.stringify(batch, null, 2));
+            
+            // Add detailed error information
+            if (batchError.name === 'ValidationException') {
+              console.error('Validation error details:', {
+                message: batchError.message,
+                code: batchError.code,
+                statusCode: batchError.$metadata?.httpStatusCode
+              });
+            }
+            
+            throw batchError;
+          }
         }
       }
 
@@ -473,46 +521,58 @@ const adminController = {
       const jobs = [];
       const errors = [];
 
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        try {
-          // Process dates properly
-          const importantDates = {};
+              for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          try {
+            // Validate required fields
+            const requiredFields = ['postName', 'organization', 'officialWebsite', 'notificationLink'];
+            const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '');
+            
+            if (missingFields.length > 0) {
+              errors.push({ 
+                row: i + 1, 
+                error: `Missing required fields: ${missingFields.join(', ')}` 
+              });
+              continue;
+            }
 
-          if (row.applicationStart !== undefined) {
-            importantDates.applicationStart = excelDateToJSDate(row.applicationStart);
+            // Process dates properly
+            const importantDates = {};
+
+            if (row.applicationStart !== undefined) {
+              importantDates.applicationStart = excelDateToJSDate(row.applicationStart);
+            }
+
+            if (row.applicationEnd !== undefined) {
+              importantDates.applicationEnd = excelDateToJSDate(row.applicationEnd);
+            }
+
+            if (row.examDate !== undefined) {
+              importantDates.examDate = excelDateToJSDate(row.examDate);
+            }
+
+            const job = {
+              jobId: uuidv4(),
+              postName: String(row.postName).trim(),
+              organization: String(row.organization).trim(),
+              advertisementNo: row.advertisementNo ? String(row.advertisementNo).trim() : undefined,
+              importantDates: importantDates,
+              applicationFee: row.applicationFee ? String(row.applicationFee).trim() : undefined,
+              vacancyDetails: row.vacancyDetails ? String(row.vacancyDetails).trim() : undefined,
+              eligibility: row.eligibility ? String(row.eligibility).trim() : undefined,
+              officialWebsite: String(row.officialWebsite).trim(),
+              notificationLink: String(row.notificationLink).trim(),
+              applyLink: row.applyLink ? String(row.applyLink).trim() : undefined,
+              resultLink: row.resultLink ? String(row.resultLink).trim() : undefined,
+              createdAt: new Date().toISOString(),
+              status: 'active'
+            };
+
+            jobs.push(job);
+          } catch (error) {
+            errors.push({ row: i + 1, error: error.message });
           }
-
-          if (row.applicationEnd !== undefined) {
-            importantDates.applicationEnd = excelDateToJSDate(row.applicationEnd);
-          }
-
-          if (row.examDate !== undefined) {
-            importantDates.examDate = excelDateToJSDate(row.examDate);
-          }
-
-          const job = {
-            jobId: uuidv4(),
-            postName: row.postName,
-            organization: row.organization,
-            advertisementNo: row.advertisementNo,
-            importantDates: importantDates,
-            applicationFee: row.applicationFee,
-            vacancyDetails: row.vacancyDetails,
-            eligibility: row.eligibility,
-            officialWebsite: row.officialWebsite,
-            notificationLink: row.notificationLink,
-            applyLink: row.applyLink,
-            resultLink: row.resultLink,
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-
-          jobs.push(job);
-        } catch (error) {
-          errors.push({ row: i + 1, error: error.message });
         }
-      }
 
       // Batch write to DynamoDB
       if (jobs.length > 0) {
@@ -522,16 +582,34 @@ const adminController = {
         }
 
         for (const batch of batches) {
-          const params = {
-            RequestItems: {
-              [process.env.SARKARI_JOBS_TABLE]: batch.map(job => ({
-                PutRequest: { Item: job }
-              }))
-            }
-          };
+          try {
+            const params = {
+              RequestItems: {
+                [process.env.SARKARI_JOBS_TABLE]: batch.map(job => ({
+                  PutRequest: { Item: job }
+                }))
+              }
+            };
 
-          const command = new BatchWriteCommand(params);
-          await docClient.send(command);
+            console.log(`Writing batch of ${batch.length} sarkari jobs to table: ${process.env.SARKARI_JOBS_TABLE}`);
+            const command = new BatchWriteCommand(params);
+            await docClient.send(command);
+            console.log(`Successfully wrote batch of ${batch.length} sarkari jobs`);
+          } catch (batchError) {
+            console.error('Error writing batch to DynamoDB:', batchError);
+            console.error('Batch data:', JSON.stringify(batch, null, 2));
+            
+            // Add detailed error information
+            if (batchError.name === 'ValidationException') {
+              console.error('Validation error details:', {
+                message: batchError.message,
+                code: batchError.code,
+                statusCode: batchError.$metadata?.httpStatusCode
+              });
+            }
+            
+            throw batchError;
+          }
         }
       }
 
@@ -795,14 +873,13 @@ const adminController = {
 
   async getRecentActivity(req, res) {
     try {
-      const AWS = require('aws-sdk');
-      const dynamoDb = new AWS.DynamoDB.DocumentClient();
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
       const params = {
         TableName: 'AdminActivities',
       };
-      const data = await dynamoDb.scan(params).promise();
+      const command = new ScanCommand(params);
+      const data = await docClient.send(command);
       const sorted = data.Items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       const total = sorted.length;
       const start = (page - 1) * limit;

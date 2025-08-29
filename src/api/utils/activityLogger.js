@@ -1,6 +1,9 @@
 const { v4: uuidv4 } = require('uuid');
-const AWS = require('aws-sdk');
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
+
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
 
 async function logActivity({ action, targetType, targetId, adminEmail }) {
   // Normalize action and targetType for consistency
@@ -19,7 +22,8 @@ async function logActivity({ action, targetType, targetId, adminEmail }) {
     },
   };
   try {
-    await dynamoDb.put(params).promise();
+    const command = new PutCommand(params);
+    await docClient.send(command);
   } catch (err) {
     console.error('Error logging activity:', err);
   }

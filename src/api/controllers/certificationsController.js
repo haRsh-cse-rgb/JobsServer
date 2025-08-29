@@ -1,11 +1,12 @@
-const AWS = require('aws-sdk');
-const axios = require('axios');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, BatchWriteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 
-// Configure AWS
-const dynamodb = new AWS.DynamoDB.DocumentClient();
+const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.CERTIFICATIONS_TABLE || 'certifications';
 
 // Configure multer for file uploads
@@ -43,7 +44,7 @@ exports.getAllCertifications = async (req, res) => {
       ScanIndexForward: false // Sort by postedAt descending
     };
 
-    const result = await dynamodb.scan(params).promise();
+    const result = await docClient.send(new ScanCommand(params));
     
     let certifications = result.Items || [];
     
@@ -92,7 +93,7 @@ exports.getCertificationById = async (req, res) => {
       Key: { id }
     };
 
-    const result = await dynamodb.get(params).promise();
+    const result = await docClient.send(new GetCommand(params));
     
     if (!result.Item) {
       return res.status(404).json({
@@ -149,7 +150,7 @@ exports.createCertification = async (req, res) => {
       Item: certification
     };
 
-    await dynamodb.put(params).promise();
+    await docClient.send(new PutCommand(params));
 
     res.status(201).json({
       success: true,
@@ -193,7 +194,7 @@ exports.updateCertification = async (req, res) => {
       ReturnValues: 'ALL_NEW'
     };
 
-    const result = await dynamodb.update(params).promise();
+    const result = await docClient.send(new UpdateCommand(params));
 
     res.json({
       success: true,
@@ -220,7 +221,7 @@ exports.deleteCertification = async (req, res) => {
       Key: { id }
     };
 
-    await dynamodb.delete(params).promise();
+    await docClient.send(new DeleteCommand(params));
 
     res.json({
       success: true,
@@ -312,7 +313,7 @@ exports.bulkUploadCertifications = async (req, res) => {
           }))
         }
       };
-      return dynamodb.batchWrite(params).promise();
+      return docClient.send(new BatchWriteCommand(params));
     });
 
     await Promise.all(writePromises);
@@ -354,7 +355,7 @@ exports.getCertificationsByCategory = async (req, res) => {
       }
     };
 
-    const result = await dynamodb.scan(params).promise();
+    const result = await docClient.send(new ScanCommand(params));
     
     // Add provider logos
     const certificationsWithLogos = await Promise.all(

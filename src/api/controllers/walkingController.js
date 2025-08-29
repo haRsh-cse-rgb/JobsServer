@@ -1,4 +1,5 @@
-const AWS = require('aws-sdk');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, BatchWriteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const axios = require('axios');
 const multer = require('multer');
 const csv = require('csv-parser');
@@ -6,11 +7,12 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 // Configure AWS
-const dynamodb = new AWS.DynamoDB.DocumentClient({
+const client = new DynamoDBClient({ 
   region: process.env.AWS_REGION || 'us-east-1',
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
 });
+const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.WALKING_TABLE || 'walking';
 
 // Configure multer for file uploads
@@ -53,7 +55,7 @@ exports.getAllWalking = async (req, res) => {
       ScanIndexForward: false // Sort by postedAt descending
     };
 
-    const result = await dynamodb.scan(params).promise();
+    const result = await docClient.send(new ScanCommand(params));
     
     // Filter results based on query parameters
     let filteredItems = result.Items;
@@ -138,7 +140,7 @@ exports.getWalkingById = async (req, res) => {
       Key: { id }
     };
 
-    const result = await dynamodb.get(params).promise();
+    const result = await docClient.send(new GetCommand(params));
     
     if (!result.Item) {
       return res.status(404).json({
@@ -206,7 +208,7 @@ exports.createWalking = async (req, res) => {
       Item: walking
     };
 
-    await dynamodb.put(params).promise();
+    await docClient.send(new PutCommand(params));
 
     res.status(201).json({
       success: true,
@@ -235,7 +237,7 @@ exports.updateWalking = async (req, res) => {
       Key: { id }
     };
 
-    const existing = await dynamodb.get(getParams).promise();
+    const existing = await docClient.send(new GetCommand(getParams));
     if (!existing.Item) {
       return res.status(404).json({
         success: false,
@@ -254,7 +256,7 @@ exports.updateWalking = async (req, res) => {
       Item: updatedWalking
     };
 
-    await dynamodb.put(params).promise();
+    await docClient.send(new PutCommand(params));
 
     res.json({
       success: true,
@@ -281,7 +283,7 @@ exports.deleteWalking = async (req, res) => {
       Key: { id }
     };
 
-    await dynamodb.delete(params).promise();
+    await docClient.send(new DeleteCommand(params));
 
     res.json({
       success: true,
@@ -377,7 +379,7 @@ exports.bulkUploadWalking = async (req, res) => {
               }
             };
 
-            await dynamodb.batchWrite(params).promise();
+            await docClient.send(new BatchWriteCommand(params));
           }
 
           // Clean up uploaded file
@@ -425,7 +427,7 @@ exports.getWalkingByCategory = async (req, res) => {
       ScanIndexForward: false
     };
 
-    const result = await dynamodb.scan(params).promise();
+    const result = await docClient.send(new ScanCommand(params));
     
     // Add company logos to each walking opportunity
     const walkingWithLogos = await Promise.all(
@@ -458,7 +460,7 @@ exports.getWalkingFilters = async (req, res) => {
       TableName: TABLE_NAME
     };
 
-    const result = await dynamodb.scan(params).promise();
+    const result = await docClient.send(new ScanCommand(params));
     
     // Extract unique categories and locations
     const categories = [...new Set(result.Items.map(item => item.category).filter(Boolean))].sort();
