@@ -63,6 +63,7 @@ const certificationsController = require('./src/api/controllers/certificationsCo
 const walkingController = require('./src/api/controllers/walkingController');
 const sarkariJobsController = require('./src/api/controllers/sarkariJobsController');
 console.log('✅ Controllers pre-initialized');
+console.log('✅ Controllers pre-initialized');
 
 
 // API Routes
