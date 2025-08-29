@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5001;
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] 
+    ? ['https://india-jobs.in'] 
     : ['http://localhost:3000'],
   credentials: true
 }));
