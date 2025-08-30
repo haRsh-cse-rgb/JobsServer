@@ -6,6 +6,8 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+console.log("Loaded AWS Key (first 6 chars):", process.env.AWS_ACCESS_KEY_ID?.slice(0, 6));
+console.log("Region:", process.env.AWS_REGION);
 
 // Security middleware
 app.use(helmet());
