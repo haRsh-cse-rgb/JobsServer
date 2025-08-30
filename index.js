@@ -12,11 +12,12 @@ console.log("Region:", process.env.AWS_REGION);
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === "production" 
-    ? "https://india-jobs.in" 
-    : "http://localhost:3000",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE"]
+  origin: [
+    'http://localhost:3000',       // local dev
+    'https://india-jobs.in',     // production frontend
+    'https://api.india-jobs.in'    // if you want to allow direct API calls
+  ],
+  credentials: true
 }));
 
 
