@@ -14,7 +14,8 @@ app.use(helmet());
 app.use(cors({
   origin: [
     'http://localhost:3000',       // local dev
-    'https://india-jobs.in',     // production frontend
+    'https://india-jobs.in',
+    'https://www.india-jobs.in',     // production frontend
     'https://api.india-jobs.in'    // if you want to allow direct API calls
   ],
   credentials: true
