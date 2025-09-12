@@ -41,23 +41,6 @@ const subscriptionController = {
         await docClient.send(command);
       }
 
-      // Send event to Kafka for newsletter processing
-      // try {
-      //   await kafkaProducer.send({
-      //     topic: 'new-subscriptions',
-      //     messages: [{
-      //       key: email,
-      //       value: JSON.stringify({
-      //         email,
-      //         categories,
-      //         subscribedAt: new Date().toISOString()
-      //       })
-      //     }]
-      //   });
-      // } catch (kafkaError) {
-      //   console.error('Kafka error (non-blocking):', kafkaError);
-      //   // Continue even if Kafka fails
-      // }
 
       res.json({
         message: 'Subscription successful',
