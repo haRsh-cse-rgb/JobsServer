@@ -326,7 +326,7 @@ const adminController = {
       }
   
       // ✅ Generate shareable text (your format)
-      const shareableText = `${jobData.companyName} is hiring for ${jobData.role} with the ${jobData.salary}. Hurry Up!\nApply here: https://yourwebsite.com/jobs/${jobData.jobId}`;
+      const shareableText = `${jobData.companyName} is hiring for ${jobData.role} with the ${jobData.salary}. Hurry Up!\nApply here: https://india-jobs.in/jobs/${jobData.jobId}`;
   
       res.status(201).json({ 
         message: 'Job created successfully', 
@@ -404,7 +404,7 @@ const adminController = {
           jobs.push(job);
   
           // ✅ Generate shareable text (your format)
-          shareableTexts.push(`${job.companyName} is hiring for ${job.role} with the ${job.salary}. Hurry Up!\nApply here: https://yourwebsite.com/jobs/${job.jobId}`);
+          shareableTexts.push(`${job.companyName} is hiring for ${job.role} with the ${job.salary}. Hurry Up!\nApply here: https://india-jobs.in/jobs/${job.jobId}`);
   
         } catch (error) {
           errors.push({ row: i + 1, error: error.message });
