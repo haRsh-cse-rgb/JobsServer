@@ -125,6 +125,171 @@ const adminController = {
     }
   },
 
+  // async createJob(req, res) {
+  //   try {
+  //     const jobData = {
+  //       ...req.body,
+  //       jobId: uuidv4(),
+  //       postedOn: new Date().toISOString(),
+  //       status: 'active'
+  //     };
+
+  //     // Validate required fields
+  //     const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
+  //     for (const field of requiredFields) {
+  //       if (!jobData[field]) {
+  //         return res.status(400).json({ error: field + ' is required' });
+  //       }
+  //     }
+
+  //     const params = {
+  //       TableName: process.env.JOBS_TABLE,
+  //       Item: jobData
+  //     };
+
+  //     const command = new PutCommand(params);
+  //     await docClient.send(command);
+  //     // Log activity
+  //     if (req.admin && req.admin.email) {
+  //       await logActivity({
+  //         action: 'added',
+  //         targetType: 'job',
+  //         targetId: jobData.jobId,
+  //         adminEmail: req.admin.email,
+  //       });
+  //     }
+
+  //     res.status(201).json({ message: 'Job created successfully', job: jobData });
+  //   } catch (error) {
+  //     console.error('Error creating job:', error);
+  //     res.status(500).json({ error: 'Failed to create job' });
+  //   }
+  // },
+
+  // async bulkUploadJobs(req, res) {
+  //   try {
+  //     if (!req.file) {
+  //       return res.status(400).json({ error: 'File is required' });
+  //     }
+
+  //     const workbook = xlsx.readFile(req.file.path);
+  //     const sheetName = workbook.SheetNames[0];
+  //     const worksheet = workbook.Sheets[sheetName];
+  //     const data = xlsx.utils.sheet_to_json(worksheet);
+
+  //     const jobs = [];
+  //     const errors = [];
+
+  //             for (let i = 0; i < data.length; i++) {
+  //         const row = data[i];
+  //         try {
+  //           // Validate required fields
+  //           const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
+  //           const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '');
+            
+  //           if (missingFields.length > 0) {
+  //             errors.push({ 
+  //               row: i + 1, 
+  //               error: `Missing required fields: ${missingFields.join(', ')}` 
+  //             });
+  //             continue;
+  //           }
+
+  //           // Validate and clean data
+  //           const job = {
+  //             jobId: uuidv4(),
+  //             role: String(row.role).trim(),
+  //             companyName: String(row.companyName).trim(),
+  //             companyLogo: row.companyLogo ? String(row.companyLogo).trim() : undefined,
+  //             location: String(row.location).trim(),
+  //             salary: String(row.salary).trim(),
+  //             jobDescription: String(row.jobDescription).trim(),
+  //             originalLink: String(row.originalLink).trim(),
+  //             category: String(row.category).trim(),
+  //             tags: row.tags ? 
+  //               (typeof row.tags === 'number' ? 
+  //                 row.tags.toString().split(',').map(tag => tag.trim()).filter(tag => tag) : 
+  //                 row.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+  //               ) : [],
+  //             batch: row.batch ? 
+  //               (typeof row.batch === 'number' ? 
+  //                 row.batch.toString().split(',').map(batch => batch.trim()).filter(batch => batch) : 
+  //                 row.batch.split(',').map(batch => batch.trim()).filter(batch => batch)
+  //               ) : [],
+  //             expiresOn: String(row.expiresOn).trim(),
+  //             postedOn: new Date().toISOString(),
+  //             status: 'active'
+  //           };
+
+  //           // Additional validation for dates
+  //           if (isNaN(Date.parse(job.expiresOn))) {
+  //             errors.push({ 
+  //               row: i + 1, 
+  //               error: `Invalid expiresOn date format: ${row.expiresOn}` 
+  //             });
+  //             continue;
+  //           }
+
+  //           jobs.push(job);
+  //         } catch (error) {
+  //           errors.push({ row: i + 1, error: error.message });
+  //         }
+  //       }
+
+  //     // Batch write to DynamoDB
+  //     if (jobs.length > 0) {
+  //       const batches = [];
+  //       for (let i = 0; i < jobs.length; i += 25) {
+  //         batches.push(jobs.slice(i, i + 25));
+  //       }
+
+  //       for (const batch of batches) {
+  //         try {
+  //           const params = {
+  //             RequestItems: {
+  //               [process.env.JOBS_TABLE]: batch.map(job => ({
+  //                 PutRequest: { Item: job }
+  //               }))
+  //             }
+  //           };
+
+  //           console.log(`Writing batch of ${batch.length} jobs to table: ${process.env.JOBS_TABLE}`);
+  //           const command = new BatchWriteCommand(params);
+  //           await docClient.send(command);
+  //           console.log(`Successfully wrote batch of ${batch.length} jobs`);
+  //         } catch (batchError) {
+  //           console.error('Error writing batch to DynamoDB:', batchError);
+  //           console.error('Batch data:', JSON.stringify(batch, null, 2));
+            
+  //           // Add detailed error information
+  //           if (batchError.name === 'ValidationException') {
+  //             console.error('Validation error details:', {
+  //               message: batchError.message,
+  //               code: batchError.code,
+  //               statusCode: batchError.$metadata?.httpStatusCode
+  //             });
+  //           }
+            
+  //           throw batchError;
+  //         }
+  //       }
+  //     }
+
+  //     // Clean up uploaded file
+  //     fs.unlinkSync(req.file.path);
+
+  //     res.json({
+  //       message: 'Bulk upload completed',
+  //       successful: jobs.length,
+  //       errors: errors.length,
+  //       errorDetails: errors
+  //     });
+  //   } catch (error) {
+  //     console.error('Error in bulk upload:', error);
+  //     res.status(500).json({ error: 'Bulk upload failed' });
+  //   }
+  // },
+
   async createJob(req, res) {
     try {
       const jobData = {
@@ -133,7 +298,7 @@ const adminController = {
         postedOn: new Date().toISOString(),
         status: 'active'
       };
-
+  
       // Validate required fields
       const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
       for (const field of requiredFields) {
@@ -141,14 +306,15 @@ const adminController = {
           return res.status(400).json({ error: field + ' is required' });
         }
       }
-
+  
       const params = {
         TableName: process.env.JOBS_TABLE,
         Item: jobData
       };
-
+  
       const command = new PutCommand(params);
       await docClient.send(command);
+  
       // Log activity
       if (req.admin && req.admin.email) {
         await logActivity({
@@ -158,91 +324,99 @@ const adminController = {
           adminEmail: req.admin.email,
         });
       }
-
-      res.status(201).json({ message: 'Job created successfully', job: jobData });
+  
+      // ✅ Generate shareable text (your format)
+      const shareableText = `${jobData.companyName} is hiring for ${jobData.role} with the ${jobData.salary}. Hurry Up!\nApply here: https://yourwebsite.com/jobs/${jobData.jobId}`;
+  
+      res.status(201).json({ 
+        message: 'Job created successfully', 
+        job: jobData,
+        shareableText
+      });
     } catch (error) {
       console.error('Error creating job:', error);
       res.status(500).json({ error: 'Failed to create job' });
     }
   },
-
+  
   async bulkUploadJobs(req, res) {
     try {
       if (!req.file) {
         return res.status(400).json({ error: 'File is required' });
       }
-
+  
       const workbook = xlsx.readFile(req.file.path);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data = xlsx.utils.sheet_to_json(worksheet);
-
+  
       const jobs = [];
       const errors = [];
-
-              for (let i = 0; i < data.length; i++) {
-          const row = data[i];
-          try {
-            // Validate required fields
-            const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
-            const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '');
-            
-            if (missingFields.length > 0) {
-              errors.push({ 
-                row: i + 1, 
-                error: `Missing required fields: ${missingFields.join(', ')}` 
-              });
-              continue;
-            }
-
-            // Validate and clean data
-            const job = {
-              jobId: uuidv4(),
-              role: String(row.role).trim(),
-              companyName: String(row.companyName).trim(),
-              companyLogo: row.companyLogo ? String(row.companyLogo).trim() : undefined,
-              location: String(row.location).trim(),
-              salary: String(row.salary).trim(),
-              jobDescription: String(row.jobDescription).trim(),
-              originalLink: String(row.originalLink).trim(),
-              category: String(row.category).trim(),
-              tags: row.tags ? 
-                (typeof row.tags === 'number' ? 
-                  row.tags.toString().split(',').map(tag => tag.trim()).filter(tag => tag) : 
-                  row.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-                ) : [],
-              batch: row.batch ? 
-                (typeof row.batch === 'number' ? 
-                  row.batch.toString().split(',').map(batch => batch.trim()).filter(batch => batch) : 
-                  row.batch.split(',').map(batch => batch.trim()).filter(batch => batch)
-                ) : [],
-              expiresOn: String(row.expiresOn).trim(),
-              postedOn: new Date().toISOString(),
-              status: 'active'
-            };
-
-            // Additional validation for dates
-            if (isNaN(Date.parse(job.expiresOn))) {
-              errors.push({ 
-                row: i + 1, 
-                error: `Invalid expiresOn date format: ${row.expiresOn}` 
-              });
-              continue;
-            }
-
-            jobs.push(job);
-          } catch (error) {
-            errors.push({ row: i + 1, error: error.message });
+      const shareableTexts = [];
+  
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        try {
+          const requiredFields = ['role', 'companyName', 'location', 'salary', 'jobDescription', 'originalLink', 'category', 'expiresOn'];
+          const missingFields = requiredFields.filter(field => !row[field] || row[field].toString().trim() === '');
+          
+          if (missingFields.length > 0) {
+            errors.push({ 
+              row: i + 1, 
+              error: `Missing required fields: ${missingFields.join(', ')}` 
+            });
+            continue;
           }
+  
+          const job = {
+            jobId: uuidv4(),
+            role: String(row.role).trim(),
+            companyName: String(row.companyName).trim(),
+            companyLogo: row.companyLogo ? String(row.companyLogo).trim() : undefined,
+            location: String(row.location).trim(),
+            salary: String(row.salary).trim(),
+            jobDescription: String(row.jobDescription).trim(),
+            originalLink: String(row.originalLink).trim(),
+            category: String(row.category).trim(),
+            tags: row.tags ? 
+              (typeof row.tags === 'number' ? 
+                row.tags.toString().split(',').map(tag => tag.trim()).filter(tag => tag) : 
+                row.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+              ) : [],
+            batch: row.batch ? 
+              (typeof row.batch === 'number' ? 
+                row.batch.toString().split(',').map(batch => batch.trim()).filter(batch => batch) : 
+                row.batch.split(',').map(batch => batch.trim()).filter(batch => batch)
+              ) : [],
+            expiresOn: String(row.expiresOn).trim(),
+            postedOn: new Date().toISOString(),
+            status: 'active'
+          };
+  
+          if (isNaN(Date.parse(job.expiresOn))) {
+            errors.push({ 
+              row: i + 1, 
+              error: `Invalid expiresOn date format: ${row.expiresOn}` 
+            });
+            continue;
+          }
+  
+          jobs.push(job);
+  
+          // ✅ Generate shareable text (your format)
+          shareableTexts.push(`${job.companyName} is hiring for ${job.role} with the ${job.salary}. Hurry Up!\nApply here: https://yourwebsite.com/jobs/${job.jobId}`);
+  
+        } catch (error) {
+          errors.push({ row: i + 1, error: error.message });
         }
-
-      // Batch write to DynamoDB
+      }
+  
       if (jobs.length > 0) {
         const batches = [];
         for (let i = 0; i < jobs.length; i += 25) {
           batches.push(jobs.slice(i, i + 25));
         }
-
+  
         for (const batch of batches) {
           try {
             const params = {
@@ -252,7 +426,7 @@ const adminController = {
                 }))
               }
             };
-
+  
             console.log(`Writing batch of ${batch.length} jobs to table: ${process.env.JOBS_TABLE}`);
             const command = new BatchWriteCommand(params);
             await docClient.send(command);
@@ -260,35 +434,26 @@ const adminController = {
           } catch (batchError) {
             console.error('Error writing batch to DynamoDB:', batchError);
             console.error('Batch data:', JSON.stringify(batch, null, 2));
-            
-            // Add detailed error information
-            if (batchError.name === 'ValidationException') {
-              console.error('Validation error details:', {
-                message: batchError.message,
-                code: batchError.code,
-                statusCode: batchError.$metadata?.httpStatusCode
-              });
-            }
-            
             throw batchError;
           }
         }
       }
-
-      // Clean up uploaded file
+  
       fs.unlinkSync(req.file.path);
-
+  
       res.json({
         message: 'Bulk upload completed',
         successful: jobs.length,
         errors: errors.length,
-        errorDetails: errors
+        errorDetails: errors,
+        shareableTexts
       });
     } catch (error) {
       console.error('Error in bulk upload:', error);
       res.status(500).json({ error: 'Bulk upload failed' });
     }
   },
+  
 
   async updateJob(req, res) {
     try {
